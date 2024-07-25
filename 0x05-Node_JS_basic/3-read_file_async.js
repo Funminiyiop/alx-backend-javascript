@@ -1,45 +1,81 @@
 const fs = require('fs');
 
+class Department {
+  constructor(nameDep) {
+    this.nameDep = nameDep;
+    this.students = [];
+  }
 
-const countStudents = (dataPath) => new Promise((resolve, reject) => {
-  fs.readFile(dataPath, 'utf-8', (err, data) => {
-    if (err) {
-      reject(new Error('Cannot load the database'));
+  append(nameSudent) {
+    if (this.students.includes(nameSudent)) {
+      return;
     }
-    if (data) {
-      const fileLines = data
-        .toString('utf-8')
-        .trim()
-        .split('\n');
-      const studentGroups = {};
-      const dbFieldNames = fileLines[0].split(',');
-      const studentPropNames = dbFieldNames
-        .slice(0, dbFieldNames.length - 1);
+    this.students.push(nameSudent);
+    Department.updateTotal();
+  }
 
-      for (const line of fileLines.slice(1)) {
-        const studentRecord = line.split(',');
-        const studentPropValues = studentRecord
-          .slice(0, studentRecord.length - 1);
-        const field = studentRecord[studentRecord.length - 1];
-        if (!Object.keys(studentGroups).includes(field)) {
-          studentGroups[field] = [];
+  static updateTotal() {
+    if (this.total === undefined) {
+      this.total = 0;
+    }
+    this.total += 1;
+  }
+
+  static getTotal() {
+    if (this.total === undefined) {
+      this.total = 0;
+    }
+    return this.total;
+  }
+
+  getStudents() {
+    return this.students;
+  }
+
+  getNameDep() {
+    return this.nameDep;
+  }
+
+  isNameDepEquals(nameDep) {
+    if (this.nameDep === nameDep) {
+      return true;
+    }
+    return false;
+  }
+}
+
+const listDep = [];
+
+function search(nameDep) {
+  for (const obj of listDep) {
+    if (obj.isNameDepEquals(nameDep)) {
+      return obj;
+    }
+  }
+  const obj = new Department(nameDep);
+  listDep.push(obj);
+  return obj;
+}
+
+function countStudents(path) {
+  return fs.promises.readFile(path, { encoding: 'utf8' })
+    .then((data) => {
+      const lines = data.split('\n');
+      for (const line of lines) {
+        if (!(line.trim() === '' || line.includes('firstname,lastname,age,field'))) {
+          const infoStd = line.split(',');
+          const objDep = search(infoStd[3]);
+          objDep.append(infoStd[0]);
         }
-        const studentEntries = studentPropNames
-          .map((propName, idx) => [propName, studentPropValues[idx]]);
-        studentGroups[field].push(Object.fromEntries(studentEntries));
       }
-
-      const totalStudents = Object
-        .values(studentGroups)
-        .reduce((pre, cur) => (pre || []).length + cur.length);
-      console.log(`Number of students: ${totalStudents}`);
-      for (const [field, group] of Object.entries(studentGroups)) {
-        const studentNames = group.map((student) => student.firstname).join(', ');
-        console.log(`Number of students in ${field}: ${group.length}. List: ${studentNames}`);
+      console.log(`Number of students: ${Department.getTotal()}`);
+      for (const depObj of listDep) {
+        const students = depObj.getStudents();
+        console.log(`Number of students in ${depObj.getNameDep()}: ${students.length}. List: ${Array.prototype.join.call(students, ', ')}`);
       }
-      resolve(true);
-    }
-  });
-});
-
+    })
+    .catch(() => {
+      throw new Error('Cannot load the database');
+    });
+}
 module.exports = countStudents;
